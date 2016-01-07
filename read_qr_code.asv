@@ -159,39 +159,45 @@ if qrCodeVersion > 1
 end
 
 %read data (start bottom right)
-dataStartX = (qrCodePixelSize * numberOfPixelsPerEdge) - 1;
-dataStartY = dataStartX;
 %coordinates where a column ends when they have a finding pattern.
-dataColumnEndFindingPatternY = (qrCodePixelSize * 9);
-dataString = '';
-pixelRow = numberOfPixelsPerEdge;
+dataEndBottomY = (qrCodePixelSize * 9);
+pixelRowBottom = numberOfPixelsPerEdge;
+dataStartBottomY = (qrCodePixelSize * numberOfPixelsPerEdge) - 1;
 pixelColumn = numberOfPixelsPerEdge;
-while dataStartY > dataColumnEndFindingPatternY
-    colorRightPixel = impixel(croppedImageRGB, dataStartX, dataStartY);
-    colorLeftPixel = impixel(croppedImageRGB, dataStartX - qrCodePixelSize, dataStartY);
+dataString = '';
+while pixelColumn >= 17
+    if pixelColumn == (numberOfPixelsPerEdge - 8)
+        dataEndBottomY = 0;
+    end
     
-    dataString = strcat(dataString, calculateDemaskedPixelValue(colorRightPixel, maskDec, pixelRow, pixelColumn));
-    dataString = strcat(dataString, calculateDemaskedPixelValue(colorLeftPixel, maskDec, pixelRow, pixelColumn - 1));
+    dataStartBottomX = (qrCodePixelSize * pixelColumn) - 1;
+    dataString = strcat(dataString, readColumnTopDown(dataStartBottomX, dataStartBottomY, dataEndBottomY, pixelRowBottom, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
     
-    pixelRow = pixelRow - 1;
-    dataStartY = dataStartY - qrCodePixelSize;
+    dataStartTopY = dataEndBottomY + 1;
+    dataEndTopY = dataStartBottomY;
+    dataStartTopX = dataStartBottomX - (2 * qrCodePixelSize);
+    pixelRow = 8;
+    pixelColumn = pixelColumn - 2;
+    dataString = strcat(dataString, readColumnBottomUp(dataStartTopX, dataStartTopY, dataEndTopY, pixelRow, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
+    
+    pixelColumn = pixelColumn - 2;
 end
 
 % 1 = Numeric (0-9), 2 = Alphanumeric, 3 = ISO 8859-1 
 mode = bin2dec(dataString(1:4));
 modeLength = calculateModeLength(mode, qrCodeVersion);
 
-% convert binary with ISO 8859-1 or other tables to string
+% convert binary with ISO 8859-1 or other character sets to string
 qrCodeContentBin = dataString(5+modeLength:end);
 qrCodeContent = '';
 startStringLocation = 1;
 qrCodeContentBinLength = length(qrCodeContentBin);
 while startStringLocation <= qrCodeContentBinLength
-    endStringLocation = startStringLocation + 8;
+    endStringLocation = startStringLocation + 7;
     if endStringLocation <= qrCodeContentBinLength
         binToConvert = qrCodeContentBin(startStringLocation:endStringLocation);
     else
-        binToConvert
+        binToConvert = qrCodeContentBin(startStringLocation:end);
     end
     qrCodeContent = strcat(qrCodeContent, bin2dec(binToConvert));
     startStringLocation = endStringLocation + 1;
@@ -203,7 +209,39 @@ display(qrCodeContent);
 figure,imshow(croppedImageRGB);
 end
 
-function demaskedPixelValue=calculateDemaskedPixelValue(pixelColors, mask, row, column) 
+function dataStringTopDown = readColumnTopDown(startX, startY, endY, pixelRow, pixelColumn, pixelSize, maskDec, croppedImageRGB)
+    dataStringTopDown = '';
+    while startY > endY
+        colorRightPixel = impixel(croppedImageRGB, startX, startY);
+        colorLeftPixel = impixel(croppedImageRGB, startX - pixelSize, startY);
+        
+        if pixelRow ~= 7
+            dataStringTopDown = strcat(dataStringTopDown, calculateDemaskedPixelValue(colorRightPixel, maskDec, pixelRow, pixelColumn));
+            dataStringTopDown = strcat(dataStringTopDown, calculateDemaskedPixelValue(colorLeftPixel, maskDec, pixelRow, pixelColumn - 1));
+        end
+        
+        pixelRow = pixelRow - 1;
+        startY = startY - pixelSize;
+    end
+end
+
+function dataStringBottomUp = readColumnBottomUp(startX, startY, endY, pixelRow, pixelColumn, pixelSize, maskDec, croppedImageRGB)
+    dataStringBottomUp = '';
+    while startY < endY
+        colorRightPixel = impixel(croppedImageRGB, startX, startY);
+        colorLeftPixel = impixel(croppedImageRGB, startX - pixelSize, startY);
+
+        if pixelRow ~= 7
+            dataStringBottomUp = strcat(dataStringBottomUp, calculateDemaskedPixelValue(colorRightPixel, maskDec, pixelRow, pixelColumn));
+            dataStringBottomUp = strcat(dataStringBottomUp, calculateDemaskedPixelValue(colorLeftPixel, maskDec, pixelRow, pixelColumn - 1));
+        end
+       
+        pixelRow = pixelRow + 1;
+        startY = startY + pixelSize;
+    end
+end
+
+function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, row, column) 
     if pixelColors(1) == 0
        %white; 
        demaskedPixelValue = '1';
@@ -212,9 +250,11 @@ function demaskedPixelValue=calculateDemaskedPixelValue(pixelColors, mask, row, 
         demaskedPixelValue = '0';
     else
         %red;
-        demaskedPixelValue = '';
+        demaskedPixelValue = ' ';
     end
-    
+    display(strcatrow);
+    display(column);
+    display(demaskedPixelValue);
     if demaskedPixelValue == '1' || demaskedPixelValue == '0'
         %apply mask
         if mask == 0
