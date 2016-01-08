@@ -18,7 +18,10 @@
 function read_qr_code 
 
 % read QR code image
-[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Co.png');
+[qrCodeImageRGB,map] = imread('Dies-ist-ein-qrcode1.jpg');
+%[qrCodeImageRGB,map] = imread('Dies-ist-ein-qrcode3.jpg');
+%[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Code.png');
+%[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Code-mit.png');
 if ~isempty(map)
     qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
 end
@@ -75,8 +78,8 @@ numberOfPixelsPerEdge = sizeCroppedImage / qrCodePixelSize;
 qrCodeVersion = floor(1 + mod(numberOfPixelsPerEdge,21) / 4);
 
 %read format and error correction infos
-formatError1StartX = 1;
-formatError1StartY = (qrCodePixelSize * 8) + 1;
+formatError1StartX = qrCodePixelSize/2;
+formatError1StartY = (qrCodePixelSize * 8) + (qrCodePixelSize / 2);
 formatError1EndX = qrCodePixelSize * 9;
 formatErrorString = '';
 while formatError1StartX < formatError1EndX
@@ -88,9 +91,9 @@ while formatError1StartX < formatError1EndX
     end
     formatError1StartX = formatError1StartX + qrCodePixelSize;
 end
-formatError2StartX = 1 + qrCodePixelSize * 8;
-formatError2StartY = qrCodePixelSize * 8 - 1;
-formatError2EndY = 1;
+formatError2StartX = (qrCodePixelSize/2) + qrCodePixelSize * 8;
+formatError2StartY = qrCodePixelSize * 7 + (qrCodePixelSize/2);
+formatError2EndY = (qrCodePixelSize/2);
 while formatError2StartY > formatError2EndY
     pixelColors = impixel(croppedImageBinary,formatError2StartX,formatError2StartY);
     if pixelColors(1) == 0
@@ -101,7 +104,7 @@ while formatError2StartY > formatError2EndY
     formatError2StartY = formatError2StartY - qrCodePixelSize;
 end
 % Remove timing pattern pixel from format string
-formatErrorString = strcat(formatErrorString(1:6), formatErrorString(8:9), formatErrorString(11:end));
+formatErrorString = strcat(formatErrorString(1:6), formatErrorString(8:10), formatErrorString(12:end));
 
 %calculate format mask
 formatStringBin = formatErrorString(1:5);
@@ -111,6 +114,7 @@ xorFormatDec = bitxor(formatStringDec, xorOperatorDec);
 xorFormatString = dec2bin(xorFormatDec, 5);
 maskBin = xorFormatString(3:5);
 maskDec = bin2dec(maskBin);
+display(maskDec);
 
 if qrCodeVersion >= 7
    %QR-Code hat noch die Versionsnummer integriert. Mehr siehe http://www.thonky.com/qr-code-tutorial/format-version-information     
@@ -194,39 +198,50 @@ if qrCodeVersion > 1
 end
 
 %read data (start bottom right)
-%coordinates where a column ends when they have a finding pattern.
+%coordinates where a column ends when they have a finder pattern.
 dataEndBottomY = (qrCodePixelSize * 9);
-pixelRowBottom = numberOfPixelsPerEdge;
-dataStartBottomY = (qrCodePixelSize * numberOfPixelsPerEdge) - 1;
-pixelColumn = numberOfPixelsPerEdge;
+pixelRowBottom = floor(numberOfPixelsPerEdge);
+dataStartBottomY = (qrCodePixelSize * numberOfPixelsPerEdge) - (qrCodePixelSize/2);
+pixelColumn = floor(numberOfPixelsPerEdge);
 dataString = '';
 pixelRow = 8;
-while pixelColumn >= 1
-    if pixelColumn == (numberOfPixelsPerEdge - 8)
+while pixelColumn >= 2
+    if pixelColumn == floor(numberOfPixelsPerEdge - 8)
         dataEndBottomY = 0;
         pixelRow = 1;
     end
     
-    dataStartBottomX = (qrCodePixelSize * pixelColumn) - 5;
+    dataStartBottomX = (qrCodePixelSize * pixelColumn) - (qrCodePixelSize/2);
     dataString = strcat(dataString, readColumnBottomUp(dataStartBottomX, dataStartBottomY, dataEndBottomY, pixelRowBottom, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
-    dataStartTopY = dataEndBottomY + 5;
+    dataStartTopY = dataEndBottomY + (qrCodePixelSize/2);
     dataEndTopY = dataStartBottomY;
     dataStartTopX = dataStartBottomX - (2 * qrCodePixelSize);
     
-    pixelColumn = pixelColumn - 2;
-    dataString = strcat(dataString, readColumnTopDown(dataStartTopX, dataStartTopY, dataEndTopY, pixelRow, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
-    
+    if pixelColumn > 2
+        pixelColumn = pixelColumn - 2;
+        dataString = strcat(dataString, readColumnTopDown(dataStartTopX, dataStartTopY, dataEndTopY, pixelRow, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
+        %display(strcat(num2str(pixelRow), ',', num2str(pixelRow), ',',readColumnTopDown(dataStartTopX, dataStartTopY, dataEndTopY, pixelRow, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB)));
+    end
     pixelColumn = pixelColumn - 2;
 end
 
 % 1 = Numeric (0-9), 2 = Alphanumeric, 3 = ISO 8859-1 
+display(dataString(1:4));
 mode = bin2dec(dataString(1:4));
-modeLength = calculateModeLength(mode, qrCodeVersion);
+display(mode);
+display(qrCodeVersion);
+%modeLength = calculateModeLength(mode, qrCodeVersion);
+modeLength = 8;
+display(dataString(5:(4 + modeLength)));
 qrCodeStringLength = bin2dec(dataString(5:(4 + modeLength)));
+display(qrCodeStringLength);
 
 % convert binary with ISO 8859-1 or other character sets to string
 dataStringEnd = 4 + modeLength + (qrCodeStringLength * 8);
-qrCodeContentBin = dataString(5+modeLength:dataStringEnd);
+%qrCodeContentBin = dataString(5+modeLength:dataStringEnd);
+qrCodeContentBin = dataString(5+modeLength:end);
+display(qrCodeContentBin);
+%qrCodeContentBin = dataString(5+modeLength:end);
 startStringLocation = 1;
 qrCodeContentBinLength = length(qrCodeContentBin);
 qrCodeContent = zeros(1, floor(qrCodeContentBinLength / 8));
@@ -271,7 +286,7 @@ end
 
 function dataStringTopDown = readColumnTopDown(startX, startY, endY, pixelRow, pixelColumn, pixelSize, maskDec, croppedImageRGB)
     dataStringTopDown = '';
-    while startY < endY
+    while startY <= endY
         colorRightPixel = impixel(croppedImageRGB, startX, startY);
         colorLeftPixel = impixel(croppedImageRGB, startX - pixelSize, startY);
 
@@ -362,21 +377,13 @@ function modeLength = calculateModeLength(qrCodeMode, qrCodeVersion)
         else 
             modeLength = 13;
         end
-    elseif qrCodeMode == 3
-        if qrCodeVersion <= 9
-            modeLength = 8;
-        elseif qrCodeVersion <= 26
-            modeLength = 16;
-        else 
-            modeLength = 16;
-        end
     elseif qrCodeMode == 4
         if qrCodeVersion <= 9
             modeLength = 8;
         elseif qrCodeVersion <= 26
-            modeLength = 10;
+            modeLength = 16;
         else 
-            modeLength = 12;
+            modeLength = 16;
         end
     end
 end
