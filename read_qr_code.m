@@ -18,7 +18,10 @@
 function read_qr_code 
 
 % read QR code image
-qrCodeImageRGB = imread('Dies-ist-ein-qrcode.jpg');
+[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Co.png');
+if ~isempty(map)
+    qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
+end
 % convert to grayscale image
 imageGrayScale = rgb2gray(qrCodeImageRGB);
 % convert grayscale image to binary image
@@ -38,22 +41,26 @@ structLabeledObjects = regionprops(labeled, 'all');
 % informations about the 3 finder patterns.
 findingPatternsCentroids = cell(3, 1);
 findingPatternsBBox= cell(3, 1);
-findingPatternArea = 0;
+findingPatternCounter = 0;
+findingPatternAreas = ones(1, 3);
 celIndex = 1;
 for i = 1:numberOfObjects
     % Loop for every object to the other objects and compare, if area is
     % the same in 2 other objects, it is a finder pattern.
     number = 0;
     for j = 1:numberOfObjects
-        if structLabeledObjects(i).Area == structLabeledObjects(j).Area
+        % sometimes, the finder patterns have not the same area size,
+        % checks also near area sizes (+- 50)
+        if (structLabeledObjects(i).Area == structLabeledObjects(j).Area) || ((structLabeledObjects(i).Area > structLabeledObjects(j).Area - 50) && (structLabeledObjects(i).Area < structLabeledObjects(j).Area)) || ((structLabeledObjects(i).Area < structLabeledObjects(j).Area + 50) && (structLabeledObjects(i).Area > structLabeledObjects(j).Area)) 
             number = number + 1;
         end
     end
     if number == 3
+        findingPatternCounter = findingPatternCounter + 1;
         findingPatternsCentroids{celIndex} = structLabeledObjects(i).Centroid;
         findingPatternsBBox{celIndex} = structLabeledObjects(i).BoundingBox;
         celIndex = celIndex + 1;
-        findingPatternArea = structLabeledObjects(i).Area;
+        findingPatternAreas(findingPatternCounter) = structLabeledObjects(i).Area;
     end
 end
 %crop image that only the qr code is part of the image
@@ -65,7 +72,7 @@ croppedImageBinary = imcrop(imageBinary, [topLeftXCroppedImage, topLeftYCroppedI
 
 %calculate qr code version
 numberOfPixelsPerEdge = sizeCroppedImage / qrCodePixelSize;
-qrCodeVersion = 1 + mod(numberOfPixelsPerEdge,21) / 4;
+qrCodeVersion = floor(1 + mod(numberOfPixelsPerEdge,21) / 4);
 
 %read format and error correction infos
 formatError1StartX = 1;
@@ -132,28 +139,56 @@ if qrCodeVersion > 1
     [labeledCroppedImage, numberOfOInCroppedI]= bwlabel(croppedImageBinary, 8);
     % Creates a structure for every object in labeled (3 finder
     % pattern, 1 border pattern and alignement patterns)
-    structLabeledCropped = regionprops(labeledCroppedImage, 'all');  
+    structLabeledCropped = regionprops(labeledCroppedImage, 'all');
+    
     % Loop through every object.
-    for i = 1:numberOfObjects
-        % Loop for every object to the other objects and compare, if area is
-        % the same in 2 other objects, it is a finder pattern.
+    for i = 1:numberOfOInCroppedI
+        % Loop for every object to the other objects and compare
         number = 0;
-        for j = 1:numberOfObjects
-            if (structLabeledCropped(i).Area == structLabeledCropped(j).Area) && (structLabeledCropped(i).Area < findingPatternArea)
-                number = number + 1;
+        for j = 1:numberOfOInCroppedI
+            % the white section of the qr code is the biggest area, then
+            % the 3 finding patterns and the the 5th biggest area is the
+            % area of one of the alignment patterns
+            if structLabeledCropped(i).Area == structLabeledCropped(j).Area
+                if structLabeledCropped(i).Area < findingPatternAreas(1) && structLabeledCropped(i).Area < findingPatternAreas(2) && structLabeledCropped(i).Area < findingPatternAreas(3)
+                    if findingPatternAreas(1) / 2 == structLabeledCropped(i).Area || (structLabeledCropped(i).Area < findingPatternAreas(1) /2 && structLabeledCropped(i).Area + 50 > findingPatternAreas(1) / 2) || (structLabeledCropped(i).Area > findingPatternAreas(1)  / 2 && structLabeledCropped(i).Area - 50 < findingPatternAreas(1) / 2)
+                        number = number + 1;
+                    end
+                end
             end
         end
         if number == numberOfAlignementPatterns
-            %This section is executed for every alignement pattern.
-            %Colorized the alignement patterns red
-            alignementPatternX = round(structLabeledCropped(i).BoundingBox(1) - qrCodePixelSize);
-            alignementPatternXEnd = floor(structLabeledCropped(i).BoundingBox(1) + qrCodePixelSize + structLabeledCropped(i).BoundingBox(3));
-            alignementPatternY = round(structLabeledCropped(i).BoundingBox(2) - qrCodePixelSize);
-            alignementPatternYEnd = floor(structLabeledCropped(i).BoundingBox(2) + qrCodePixelSize + structLabeledCropped(i).BoundingBox(4));
+            %This section is executed for every possible alignement pattern.
+            %Checks if the pattern is an alignement pattern and colorized the alignement patterns red
+            patternCentroidY = structLabeledCropped(i).Centroid(2);
+            patternXStart = structLabeledCropped(i).Centroid(1) - (2 * qrCodePixelSize);
+            patternXEnd = structLabeledCropped(i).Centroid(1) + (2 * qrCodePixelSize) + 1;
             
-            croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,1) = 153;
-            croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,2) = 0;
-            croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,3) = 0;
+            counter = 1;
+            correctColorCounter = 0;
+            while patternXStart < patternXEnd
+                pixelColors = impixel(croppedImageBinary, patternXStart, patternCentroidY);
+                if pixelColors(1) == 0 && (mod(counter, 2) == 1)
+                    correctColorCounter = correctColorCounter + 1;
+                elseif pixelColors(1) == 1 && (mod(counter, 2) == 0)
+                    correctColorCounter = correctColorCounter + 1;
+                end
+                patternXStart = patternXStart + qrCodePixelSize;
+                counter = counter + 1;
+            end
+            
+            %Alignment patterns have the correct color counter = 5
+            if correctColorCounter == 5
+                
+                alignementPatternX = round(structLabeledCropped(i).BoundingBox(1) - qrCodePixelSize);
+                alignementPatternXEnd = floor(structLabeledCropped(i).BoundingBox(1) + qrCodePixelSize + structLabeledCropped(i).BoundingBox(3));
+                alignementPatternY = round(structLabeledCropped(i).BoundingBox(2) - qrCodePixelSize);
+                alignementPatternYEnd = floor(structLabeledCropped(i).BoundingBox(2) + qrCodePixelSize + structLabeledCropped(i).BoundingBox(4));
+
+                croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,1) = 153;
+                croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,2) = 0;
+                croppedImageRGB(alignementPatternX:alignementPatternXEnd,alignementPatternY:alignementPatternYEnd,3) = 0;
+            end
         end
     end; 
 end
@@ -166,15 +201,15 @@ dataStartBottomY = (qrCodePixelSize * numberOfPixelsPerEdge) - 1;
 pixelColumn = numberOfPixelsPerEdge;
 dataString = '';
 pixelRow = 8;
-while pixelColumn >= 17
+while pixelColumn >= 1
     if pixelColumn == (numberOfPixelsPerEdge - 8)
         dataEndBottomY = 0;
         pixelRow = 1;
     end
     
-    dataStartBottomX = (qrCodePixelSize * pixelColumn) - 1;
+    dataStartBottomX = (qrCodePixelSize * pixelColumn) - 5;
     dataString = strcat(dataString, readColumnBottomUp(dataStartBottomX, dataStartBottomY, dataEndBottomY, pixelRowBottom, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB));
-    dataStartTopY = dataEndBottomY + 1;
+    dataStartTopY = dataEndBottomY + 5;
     dataEndTopY = dataStartBottomY;
     dataStartTopX = dataStartBottomX - (2 * qrCodePixelSize);
     
@@ -215,7 +250,6 @@ end
 
 display(strcat(qrCodeContent));
 
-%display(findingPatternsBBox);
 figure,imshow(croppedImageRGB);
 end
 
@@ -262,42 +296,44 @@ function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, row
         %red;
         demaskedPixelValue = ' ';
     end
+    %display(strcat(demaskedPixelValue, ',', num2str(row), ',', num2str(column)));
+    %http://www.its.fd.cvut.cz/ms-en/courses/identification-systems/idfs-qr-code-suplement.pdf
+    modCompareValue = 0;
     if demaskedPixelValue == '1' || demaskedPixelValue == '0'
         %apply mask
         if mask == 0
-            if mod((row + column),2) == 0
+            if mod((row + column),2) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 1
-            if mod(row,2) == 0
+            if mod(row,2) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 2
-            if mod(column,3) == 0
+            if mod(column,3) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 3
-            if mod((row + column),3) == 0
+            if mod((row + column),3) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 4
-            if mod((floor(row/2) + floor(column/3)),2) == 0
+            if mod((floor(row/2) + floor(column/3)),2) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 5
-            if (mod((row * column),2) + mod((row * column),3)) == 0
+            if (mod((row * column),2) + mod((row * column),3)) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 6
-            if mod((mod((row * column),2) + (mod((row * column),3))),2) == 0
+            if mod((mod((row * column),2) + (mod((row * column),3))),2) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 7
-            if mod((mod((row * column),2) + (mod((row * column),3))),2) == 0
+            if mod((mod((row * column),2) + (mod((row * column),3))),2) == modCompareValue
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
-        end 
-        demaskedPixelValue = num2str(demaskedPixelValue);
+        end
     end
 end 
 
