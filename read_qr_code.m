@@ -18,11 +18,13 @@
 function read_qr_code 
 
 % read QR code image
-%[qrCodeImageRGB,map] = imread('Hallo-wie-geht-es-dir-du-schoene-frau.png'); %geht, ausser umlaut
-%[qrCodeImageRGB,map] = imread('Dies-ist-ein-qrcode1.jpg'); %geht
-%[qrCodeImageRGB,map] = imread('Dies-ist-ein-qrcode3.jpg'); %geht
-%[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Code.png'); %geht
+[qrCodeImageRGB,map] = imread('qrcode4-v6-m2.png');
 %[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Code-mit.png'); %geht nicht. Problem: alignment pattern wird nicht erkannt
+%[qrCodeImageRGB,map] = imread('Hallo-wie-geht-es-dir-du-schoene-frau.png'); %geht, ausser umlaut, vers. 3
+%[qrCodeImageRGB,map] = imread('qr-code-higher-version.jpg'); %geht nicht
+
+display('read qr code in progress...');
+
 if ~isempty(map)
     qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
 end
@@ -43,11 +45,14 @@ structLabeledObjects = regionprops(labeled, 'all');
 
 % Loop through every object and get area centroid and bounding box
 % informations about the 3 finder patterns.
-findingPatternsCentroids = cell(3, 1);
-findingPatternsBBox= cell(3, 1);
-findingPatternCounter = 0;
-findingPatternAreas = ones(1, 3);
-celIndex = 1;
+finderPatternCounter = 1;
+possibleFinderPatterns = cell(10, 2);
+% initialize first column of every row in cell with 0 -> needed later for
+% sorting.
+for i = 1:10
+    possibleFinderPatterns{i, 1} = 0;
+end
+
 for i = 1:numberOfObjects
     % Loop for every object to the other objects and compare, if area is
     % the same in 2 other objects, it is a finder pattern.
@@ -60,22 +65,25 @@ for i = 1:numberOfObjects
         end
     end
     if number == 3
-        findingPatternCounter = findingPatternCounter + 1;
-        findingPatternsCentroids{celIndex} = structLabeledObjects(i).Centroid;
-        findingPatternsBBox{celIndex} = structLabeledObjects(i).BoundingBox;
-        celIndex = celIndex + 1;
-        findingPatternAreas(findingPatternCounter) = structLabeledObjects(i).Area;
+        possibleFinderPatterns{finderPatternCounter, 1} = structLabeledObjects(i).Area;
+        possibleFinderPatterns{finderPatternCounter, 2} = structLabeledObjects(i).BoundingBox;
+        finderPatternCounter = finderPatternCounter + 1;
     end
 end
+possibleFinderPatterns = sortrows(possibleFinderPatterns, 1);
+finderPattern1Area = possibleFinderPatterns{8, 1};
+finderPattern2Area = possibleFinderPatterns{9, 1};
+finderPattern3Area = possibleFinderPatterns{10, 1};
+
 %crop image that only the qr code is part of the image
-qrCodePixelSize = findingPatternsBBox{1}(3) / 5;
-topLeftXCroppedImage = findingPatternsBBox{1}(1) - qrCodePixelSize;
-topLeftYCroppedImage = findingPatternsBBox{1}(2) - qrCodePixelSize;
-sizeCroppedImage = (findingPatternsBBox{3}(1) + findingPatternsBBox{3}(3)) - topLeftXCroppedImage + qrCodePixelSize;
+qrCodePixelSize = possibleFinderPatterns{8, 2}(3) / 5;
+topLeftXCroppedImage = possibleFinderPatterns{8, 2}(1) - qrCodePixelSize;
+topLeftYCroppedImage = possibleFinderPatterns{8, 2}(2) - qrCodePixelSize;
+sizeCroppedImage = (possibleFinderPatterns{10, 2}(1) + possibleFinderPatterns{10, 2}(3)) - topLeftXCroppedImage + qrCodePixelSize;
 croppedImageBinary = imcrop(imageBinary, [topLeftXCroppedImage, topLeftYCroppedImage, sizeCroppedImage, sizeCroppedImage]);
 
 %calculate qr code version
-numberOfPixelsPerEdge = sizeCroppedImage / qrCodePixelSize;
+numberOfPixelsPerEdge = round(sizeCroppedImage / qrCodePixelSize);
 qrCodeVersion = floor(1 + mod(numberOfPixelsPerEdge,21) / 4);
 
 %read format and error correction infos
@@ -115,6 +123,7 @@ xorFormatDec = bitxor(formatStringDec, xorOperatorDec);
 xorFormatString = dec2bin(xorFormatDec, 5);
 maskBin = xorFormatString(3:5);
 maskDec = bin2dec(maskBin);
+display(strcat('Mask: ', num2str(maskDec)));
 
 if qrCodeVersion >= 7
    %QR-Code hat noch die Versionsnummer integriert. Mehr siehe http://www.thonky.com/qr-code-tutorial/format-version-information     
@@ -154,14 +163,16 @@ if qrCodeVersion > 1
             % the 3 finding patterns and the the 5th biggest area is the
             % area of one of the alignment patterns
             if structLabeledCropped(i).Area == structLabeledCropped(j).Area
-                if structLabeledCropped(i).Area < findingPatternAreas(1) && structLabeledCropped(i).Area < findingPatternAreas(2) && structLabeledCropped(i).Area < findingPatternAreas(3)
-                    if findingPatternAreas(1) / 2 == structLabeledCropped(i).Area || (structLabeledCropped(i).Area < findingPatternAreas(1) /2 && structLabeledCropped(i).Area + 50 > findingPatternAreas(1) / 2) || (structLabeledCropped(i).Area > findingPatternAreas(1)  / 2 && structLabeledCropped(i).Area - 50 < findingPatternAreas(1) / 2)
+                if structLabeledCropped(i).Area < finderPattern1Area && structLabeledCropped(i).Area < finderPattern2Area && structLabeledCropped(i).Area < finderPattern3Area
+                    if finderPattern1Area / 2 == structLabeledCropped(i).Area || (structLabeledCropped(i).Area < finderPattern1Area /2 && structLabeledCropped(i).Area + 50 > finderPattern1Area / 2) || (structLabeledCropped(i).Area > finderPattern1Area  / 2 && structLabeledCropped(i).Area - 50 < finderPattern1Area / 2)
                         number = number + 1;
                     end
                 end
             end
         end
-        if number == numberOfAlignementPatterns
+        % >= test, because sometimes is another connected section in the qr
+        % code which have the same size than the alignement patterns. 
+        if number >= numberOfAlignementPatterns
             %This section is executed for every possible alignement pattern.
             %Checks if the pattern is an alignement pattern and colorized the alignement patterns red
             patternCentroidY = structLabeledCropped(i).Centroid(2);
@@ -230,6 +241,7 @@ end
 
 % 1 = Numeric (0-9), 2 = Alphanumeric, 3 = ISO 8859-1 
 mode = bin2dec(dataString(1:4));
+
 if mode == 4
     modeLength = calculateModeLength(mode, qrCodeVersion);
     qrCodeStringLength = bin2dec(dataString(5:(4 + modeLength)));
@@ -248,6 +260,7 @@ if mode == 4
         else
             binToConvert = qrCodeContentBin(startStringLocation:end);
         end
+        display(strcat(num2str(whileCounter), ':', binToConvert));
         decChar = bin2dec(binToConvert);
         if decChar == 32 
             qrCodeContent(whileCounter) = ' ';
@@ -257,8 +270,12 @@ if mode == 4
         startStringLocation = endStringLocation + 1;
         whileCounter = whileCounter + 1;
     end
+    
+    display('qr code was successfully read');
+    display(strcat(qrCodeContent));
+    imageTitle = strcat('Version:', num2str(qrCodeVersion), ' Text:', qrCodeContent);
     figure('Name', 'QR-Code-Reader'), imshow(croppedImageRGB);
-    title(gca, strcat(qrCodeContent)) 
+    title(gca, imageTitle) 
 else
     display('Not an ISO-8859-1 QR-Code! QR-Code Reader cannot read this QR-Code'); 
 end
@@ -327,6 +344,7 @@ function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, mas
         %red;
         demaskedPixelValue = ' ';
     end
+    
     %display(strcat(demaskedPixelValue, ',', num2str(row), ',', num2str(column)));
     %http://www.its.fd.cvut.cz/ms-en/courses/identification-systems/idfs-qr-code-suplement.pdf
     if demaskedPixelValue == '1' || demaskedPixelValue == '0'
