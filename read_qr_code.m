@@ -18,10 +18,7 @@
 function read_qr_code 
 
 % read QR code image
-[qrCodeImageRGB,map] = imread('qrcode4-v6-m2.png');
-%[qrCodeImageRGB,map] = imread('Dies-ist-ein-QR-Code-mit.png'); %geht nicht. Problem: alignment pattern wird nicht erkannt
-%[qrCodeImageRGB,map] = imread('Hallo-wie-geht-es-dir-du-schoene-frau.png'); %geht, ausser umlaut, vers. 3
-%[qrCodeImageRGB,map] = imread('qr-code-higher-version.jpg'); %geht nicht
+[qrCodeImageRGB,map] = imread('qrcode.png');
 
 display('read qr code in progress...');
 
@@ -209,13 +206,12 @@ if qrCodeVersion > 1
 end
 
 %read data (start bottom right)
-%coordinates where a column ends when they have a finder pattern.
 dataEndBottomY = (qrCodePixelSize * 9);
 pixelRowBottom = floor(numberOfPixelsPerEdge);
 dataStartBottomY = (qrCodePixelSize * numberOfPixelsPerEdge) - (qrCodePixelSize/2);
 pixelColumn = floor(numberOfPixelsPerEdge);
 dataString = '';
-pixelRow = 8;
+pixelRow = 10;
 
 maskModuloNumber = checkIfMaskModuloIsOneOrZero(dataStartBottomY, dataStartBottomY, pixelRowBottom, pixelColumn, qrCodePixelSize, maskDec, croppedImageRGB);
 
@@ -228,7 +224,8 @@ while pixelColumn >= 2
     dataStartBottomX = (qrCodePixelSize * pixelColumn) - (qrCodePixelSize/2);
     dataString = strcat(dataString, readColumnBottomUp(dataStartBottomX, dataStartBottomY, dataEndBottomY, pixelRowBottom, pixelColumn, qrCodePixelSize, maskDec, maskModuloNumber, croppedImageRGB));
     dataStartTopY = dataEndBottomY + (qrCodePixelSize/2);
-    dataEndTopY = dataStartBottomY;
+    %add pixelSize/3 for inaccurate pixel
+    dataEndTopY = dataStartBottomY + (qrCodePixelSize/3);
     dataStartTopX = dataStartBottomX - (2 * qrCodePixelSize);
     
     if pixelColumn > 2
@@ -335,17 +332,20 @@ end
 
 function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, maskModuloNumber, row, column) 
     if pixelColors(1) == 0
-       %white; 
+        %black;
        demaskedPixelValue = '1';
     elseif pixelColors(1) == 1
-        %black;
+        %white;
         demaskedPixelValue = '0';
     else
         %red;
         demaskedPixelValue = ' ';
     end
     
-    %display(strcat(demaskedPixelValue, ',', num2str(row), ',', num2str(column)));
+    row = row - 1;
+    column = column - 1;
+    
+    display(strcat(demaskedPixelValue, ',', num2str(row), ',', num2str(column)));
     %http://www.its.fd.cvut.cz/ms-en/courses/identification-systems/idfs-qr-code-suplement.pdf
     if demaskedPixelValue == '1' || demaskedPixelValue == '0'
         %apply mask
@@ -378,7 +378,7 @@ function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, mas
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         elseif mask == 7
-            if mod((mod((row * column),2) + (mod((row * column),3))),2) == maskModuloNumber
+            if mod(mod((row * column), 3) + row + column, 2) == maskModuloNumber
                 demaskedPixelValue = invertBit(demaskedPixelValue);
             end
         end
