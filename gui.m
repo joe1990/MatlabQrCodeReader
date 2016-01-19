@@ -74,13 +74,15 @@ function btnSelectFile_Callback(hObject, eventdata, handles)
 % hObject    handle to btnSelectFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-handles.path = uigetfile('*.png');
+[fileName,pathName] = uigetfile('*.png');
+handles.path = strcat(pathName, fileName);
 set(handles.txtPath, 'string', handles.path);
 guidata(hObject,handles);
 
 % --- Executes on button press in btnReadImage.
 function btnReadImage_Callback(hObject, eventdata, handles)
 %Inital step: display loaded image in axesQrCodeImage1
+display(handles.path);
 [qrCodeImageRGB,map] = imread(handles.path);
 if ~isempty(map)
     qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
