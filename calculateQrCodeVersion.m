@@ -1,4 +1,4 @@
-function [qrCodeVersion, formulaString] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize)
+function [qrCodeVersion, formulaString, numberOfPixelsPerEdge] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize)
     numberOfPixelsPerEdge = round(sizeCroppedImage / qrCodePixelSize);
     pixelGreaterThan21 = floor(numberOfPixelsPerEdge) - 21;
     

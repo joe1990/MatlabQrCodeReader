@@ -113,7 +113,7 @@ rectangle('Position', [(finderPatternsEnd-finderPatternWidthHeight) 1 finderPatt
 rectangle('Position', [1 (finderPatternsEnd-finderPatternWidthHeight) finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
 
 %Step 3: calculate qr code version
-[qrCodeVersion, formulaString] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize);
+[qrCodeVersion, formulaString, numberOfPixelsPerEdge] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize);
 set(handles.txtStep3Value,'string', formulaString);
 set(handles.txtVersion,'string', strcat('Version: ', num2str(qrCodeVersion)));
 
@@ -136,13 +136,59 @@ set(handles.axesQrCodeImage7,'visible','on');
 axes(handles.axesQrCodeImage7);
 imshow(imageRGBWithAlignmentPattern);
 
-%qrCodeImage = read_qr_code(croppedRGBImage, finderPatternAreas, qrCodePixelSize, sizeCroppedImage);
-%set(handles.axesQrCodeImage4,'visible','on');
-%axes(handles.axesQrCodeImage4);
-%imshow(qrCodeImage);
+%Step 7: 
+dataString = readData(imageRGBWithAlignmentPattern, qrCodePixelSize, numberOfPixelsPerEdge, maskDec);
+set(handles.axesQrCodeImage8,'visible','on');
+axes(handles.axesQrCodeImage8);
+imshow(imageRGBWithAlignmentPattern);
+%draw column numbers
+for i=0:(numberOfPixelsPerEdge - 1)
+    if i < 10
+        xPos1 = qrCodePixelSize * i + (qrCodePixelSize / 2);
+    else
+        xPos1 = qrCodePixelSize * i;
+    end
+    yPos2 = qrCodePixelSize * i + (qrCodePixelSize / 2);
+    
+    yPos1 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
+    xPos2 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
+    
+    text(xPos1, yPos1, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
+    text(xPos2, yPos2, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
 
-%qrCodeImage = read_qr_code(handles.path);
-%qrCodeImage = convertImageToBinary(handles.path);
+    %rectangle for the read
+    if mod(i, 2) == 0
+        rectangle('Position', [((numberOfPixelsPerEdge - 2 - i) * qrCodePixelSize + 1) 0 (2 * qrCodePixelSize) ((numberOfPixelsPerEdge + 1) * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
+    end
+end
+%mark not readable content of the qr code
+%mark 3 areas with finder pattern, empty line and format info
+rectangle('Position', [1 1 (9 * qrCodePixelSize) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+rectangle('Position', [(finderPatternsEnd - 8 * qrCodePixelSize - 1) 1 (8 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+rectangle('Position', [1 (finderPatternsEnd - 8 * qrCodePixelSize - 1) (9 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+%mark fixed patterns
+rectangle('Position', [(9 * qrCodePixelSize)  (6 * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 16) * qrCodePixelSize) qrCodePixelSize], 'FaceColor','r', 'EdgeColor', 'r');
+rectangle('Position', [(6 * qrCodePixelSize + 1) (9 * qrCodePixelSize) qrCodePixelSize ((numberOfPixelsPerEdge - 16) * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
 
-%guidata(hObject,handles)
-%imshow(qrCodeImage);
+%Step 7 - Continuation
+set(handles.txtStep7MaskCalculation,'string', displayMaskFormula(maskDec));
+dataStringTodisplay = dataString;
+if length(dataString) > 110
+    dataStringTodisplay = strcat(dataStringTodisplay(1:110), '...');
+end
+set(handles.txtValueStep7Data, 'string', dataStringTodisplay);
+
+%Step 8 and 9: Convert dataString to ISO
+mode = bin2dec(dataString(1:4));
+set(handles.axesQrCodeImage9,'visible','on');
+axes(handles.axesQrCodeImage9);
+imshow(imageRGBWithAlignmentPattern);
+rectangle('Position', [((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) (2 * qrCodePixelSize) (2 * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
+if (mode == 4)
+   modeText = '0100 =  ISO 8859-1';
+   qrCodeResult = convertToIso(dataString, mode, qrCodeVersion);
+   set(handles.txtQrCodeResult, 'string', qrCodeResult);
+else
+   modeText = 'Kein ISO 8859-1. Nicht unterstützt.';
+end
+text(1, ((numberOfPixelsPerEdge + 1) * qrCodePixelSize), modeText, 'Units', 'data', 'FontSize',12, 'Color','r');
