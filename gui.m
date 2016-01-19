@@ -81,6 +81,23 @@ guidata(hObject,handles);
 
 % --- Executes on button press in btnReadImage.
 function btnReadImage_Callback(hObject, eventdata, handles)
+%set gui to initial status (reset axes and set text)
+cla(handles.axesQrCodeImage1);
+cla(handles.axesQrCodeImage2);
+cla(handles.axesQrCodeImage3);
+cla(handles.axesQrCodeImage5);
+cla(handles.axesQrCodeImage7);
+cla(handles.axesQrCodeImage8);
+cla(handles.axesQrCodeImage9);
+set(handles.txtStep3Value,'string', '');
+set(handles.txtVersion,'string', '');
+set(handles.txtStep4Value,'string', '');
+set(handles.txtStep5Value,'string', '');
+set(handles.txtStep5Value2, 'string', '');
+set(handles.txtValueStep7Data, 'string', '');
+set(handles.txtQrCodeResult, 'string', '');
+drawnow();
+
 %Inital step: display loaded image in axesQrCodeImage1
 display(handles.path);
 [qrCodeImageRGB,map] = imread(handles.path);
@@ -90,22 +107,26 @@ end
 set(handles.axesQrCodeImage1,'visible','on');
 axes(handles.axesQrCodeImage1);
 imshow(qrCodeImageRGB);
+drawnow();
 
 %Step 1: display binary image in axesQrCodeImage2
 binaryImage = convertImageToBinary(qrCodeImageRGB);
 set(handles.axesQrCodeImage2,'visible','on');
 axes(handles.axesQrCodeImage2);
 imshow(binaryImage);
+drawnow();
 
 %Step 2: find finder patterns, crop image and display in axesQrCodeImage3
 [croppedBinaryImage, finderPatternAreas, qrCodePixelSize, sizeCroppedImage] = findFinderPatternsAndCropImage(binaryImage);
 set(handles.axesQrCodeImage3,'visible','on');
 axes(handles.axesQrCodeImage3);
 imshow(croppedBinaryImage);
+drawnow();
 
 %colorize the tree finder patterns with a green rectangle
 finderPatternWidthHeight = round(qrCodePixelSize * 7);
 finderPatternsEnd = round(sizeCroppedImage) + 1;
+drawnow();
 
 %left finder pattern
 rectangle('Position', [1 1 finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
@@ -118,6 +139,7 @@ rectangle('Position', [1 (finderPatternsEnd-finderPatternWidthHeight) finderPatt
 [qrCodeVersion, formulaString, numberOfPixelsPerEdge] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize);
 set(handles.txtStep3Value,'string', formulaString);
 set(handles.txtVersion,'string', strcat('Version: ', num2str(qrCodeVersion)));
+drawnow();
 
 %Step 4: read format info
 formatInfoBin = readFormatInfoAsBinary(croppedBinaryImage, qrCodePixelSize);
@@ -126,17 +148,20 @@ axes(handles.axesQrCodeImage5);
 imshow(croppedBinaryImage);
 rectangle('Position', [1 (1 + 8 * qrCodePixelSize) (5 * qrCodePixelSize) qrCodePixelSize], 'EdgeColor','g', 'LineWidth',3);
 set(handles.txtStep4Value,'string', strcat('Format-Info Binär: ', formatInfoBin));
+drawnow();
 
 %Step 5: calculate mask
 [maskDec, maskBin, xorFormatString] = calculateMask(formatInfoBin);
 set(handles.txtStep5Value,'string', strcat(formatInfoBin, ' XOR 10101 = ', xorFormatString));
 set(handles.txtStep5Value2, 'string', strcat('3 letzte Zeichen = ', maskBin, ' = ', num2str(maskDec), ' d.h. Maske ', num2str(maskDec), ' kam zur Anwendung.'));
+drawnow();
 
 %Step 6: find and colorize alignment patterns
 imageRGBWithAlignmentPattern = findAndColorizeAlignmentPatterns(croppedBinaryImage, qrCodeVersion, qrCodePixelSize, finderPatternAreas);
 set(handles.axesQrCodeImage7,'visible','on');
 axes(handles.axesQrCodeImage7);
 imshow(imageRGBWithAlignmentPattern);
+drawnow();
 
 %Step 7: 
 dataString = readData(imageRGBWithAlignmentPattern, qrCodePixelSize, numberOfPixelsPerEdge, maskDec);
@@ -171,6 +196,7 @@ rectangle('Position', [1 (finderPatternsEnd - 8 * qrCodePixelSize - 1) (9 * qrCo
 %mark fixed patterns
 rectangle('Position', [(9 * qrCodePixelSize)  (6 * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 16) * qrCodePixelSize) qrCodePixelSize], 'FaceColor','r', 'EdgeColor', 'r');
 rectangle('Position', [(6 * qrCodePixelSize + 1) (9 * qrCodePixelSize) qrCodePixelSize ((numberOfPixelsPerEdge - 16) * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+drawnow();
 
 %Step 7 - Continuation
 set(handles.txtStep7MaskCalculation,'string', displayMaskFormula(maskDec));
@@ -179,6 +205,7 @@ if length(dataString) > 110
     dataStringTodisplay = strcat(dataStringTodisplay(1:110), '...');
 end
 set(handles.txtValueStep7Data, 'string', dataStringTodisplay);
+drawnow();
 
 %Step 8 and 9: Convert dataString to ISO
 mode = bin2dec(dataString(1:4));
@@ -193,4 +220,5 @@ if (mode == 4)
 else
    modeText = 'Kein ISO 8859-1. Nicht unterstützt.';
 end
-text(1, ((numberOfPixelsPerEdge + 1) * qrCodePixelSize), modeText, 'Units', 'data', 'FontSize',12, 'Color','r');
+text(1, ((numberOfPixelsPerEdge + 1) * qrCodePixelSize), modeText, 'Units', 'data', 'FontSize',12, 'Color','g');
+drawnow();

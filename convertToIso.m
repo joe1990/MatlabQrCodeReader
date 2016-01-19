@@ -4,6 +4,9 @@ function qrCodeResult = convertToIso(dataString, mode, qrCodeVersion)
 
     % convert binary with ISO 8859-1 to string
     dataStringEnd = 4 + modeLength + (qrCodeStringLength * 8);
+    if dataStringEnd >= length(dataString)
+        dataStringEnd = length(dataString) - 1;
+    end
     qrCodeContentBin = dataString(5+modeLength:dataStringEnd);
     startStringLocation = 1;
     qrCodeContentBinLength = length(qrCodeContentBin);
