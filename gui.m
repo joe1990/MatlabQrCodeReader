@@ -1,3 +1,20 @@
+% QR-Code Reader: 
+% This application finds a QR code in a given image and extraxts the string
+% message which is included in the QR code. 
+%
+% The given image should be a png image and the qr code location in
+% the image can be different for every image. Only important is, than the
+% qr code in the image is completely (no errors) and both colors are
+% contrasty. The text in the QR code can contains characters in ISO-8859-1.
+% Other formats are not supported.
+% This QR code reader supports only QR code versions from 1 (21 x 21 modules)
+% to 5 (37 x 37 modules).
+%   
+%% AUTHOR    : Joel Holzer
+%% $DATE     : 09.12.2015 $ 
+%% $Revision : 1.00 $ 
+%% DEVELOPED : R2015a 
+%% FILENAME  : gui.m 
 function varargout = untitled(varargin)
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
