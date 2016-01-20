@@ -1,5 +1,17 @@
-function [dataString, dataStringWithoutMask] = readData(croppedImageRGB, qrCodePixelSize, numberOfPixelsPerEdge, maskDec)
-
+% Reads the data from the qr-code and returns the readed binary string.
+% The data are read from the bottom right corner to the top left corner.
+% Only the half qr code is read, because the other half of the qr code
+% contains error correction informations and the data are just in the right
+% half site.
+% This file contains one method to read the data bottom up and one method
+% to read the data top down. Every second column is readed bottom up and
+% every second top down, started with bottom up.
+% Every module which is read is demasked with the mask, that means for every
+% module a calculation is done which depends on the mask number.
+%% AUTHOR    : Joel Holzer 
+%% $Revision : 1.00 $ 
+%% FILENAME  : readData.m 
+function [dataString] = readData(croppedImageRGB, qrCodePixelSize, numberOfPixelsPerEdge, maskDec)
     %read data (start bottom right)
     dataEndBottomY = (qrCodePixelSize * 9);
     pixelRowBottom = floor(numberOfPixelsPerEdge);
@@ -30,7 +42,7 @@ function [dataString, dataStringWithoutMask] = readData(croppedImageRGB, qrCodeP
     end
 end
 
-
+% Reads a column (or 2 columns) from bottom up and return the binary string for the column. 
 function dataStringBottomUp = readColumnBottomUp(startX, startY, endY, pixelRow, pixelColumn, pixelSize, maskDec, maskModuloNumber, croppedImageRGB)
     dataStringBottomUp = '';
     while startY > endY
@@ -47,6 +59,7 @@ function dataStringBottomUp = readColumnBottomUp(startX, startY, endY, pixelRow,
     end
 end
 
+% Reads a column (or 2 columns) from top down and return the binary string for the column.
 function dataStringTopDown = readColumnTopDown(startX, startY, endY, pixelRow, pixelColumn, pixelSize, maskDec, maskModuloNumber, croppedImageRGB)
     dataStringTopDown = '';
     while startY <= endY
@@ -63,7 +76,11 @@ function dataStringTopDown = readColumnTopDown(startX, startY, endY, pixelRow, p
     end
 end
 
-
+% Calculates the value of a module after demask. There exists 8 mask. Every
+% mask lead to another modulo operation. If the result
+% of the module operation is 0, the module value (1 for black, 0 for white)
+% is inverted.
+% This method returns the finally module value.
 function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, maskModuloNumber, row, column) 
     if pixelColors(1) == 0
         %black;
@@ -117,6 +134,7 @@ function demaskedPixelValue = calculateDemaskedPixelValue(pixelColors, mask, mas
     end
 end 
 
+% Inverts the given value. 0 -> 1, 1 -> 0
 function invertedBit = invertBit(bitToInvert) 
     if bitToInvert == '0'
         invertedBit = '1';

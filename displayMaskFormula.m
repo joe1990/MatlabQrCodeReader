@@ -1,3 +1,9 @@
+% This function returns the formula which is executed for every module for
+% the given mask, as a string. Is only used to display the formula in the
+% gui.
+%% AUTHOR    : Joel Holzer 
+%% $Revision : 1.00 $ 
+%% FILENAME  : displayMaskFormula.m 
 function maskFormula = displayMaskFormula(mask)
     maskFormula = strcat('Formel für Maske ', num2str(mask), ': ');
     

@@ -9,20 +9,23 @@
 % Other formats are not supported.
 % This QR code reader supports only QR code versions from 1 (21 x 21 modules)
 % to 5 (37 x 37 modules).
+%
+% This is the main class from the application.
 %   
 %% AUTHOR    : Joel Holzer
-%% $DATE     : 09.12.2015 $ 
+%% $DATE     : 20.01.2016 $ 
 %% $Revision : 1.00 $ 
 %% DEVELOPED : R2015a 
 %% FILENAME  : gui.m 
-function varargout = untitled(varargin)
+function varargout = matlabQrCodeGui(varargin)
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @untitled_OpeningFcn, ...
-                   'gui_OutputFcn',  @untitled_OutputFcn, ...
+                   'gui_OpeningFcn', @matlabQrCodeGui_OpeningFcn, ...
+                   'gui_OutputFcn',  @matlabQrCodeGui_OutputFcn, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
+
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -35,46 +38,27 @@ end
 % End initialization code - DO NOT EDIT
 
 
-% --- Executes just before untitled is made visible.
-function untitled_OpeningFcn(hObject, eventdata, handles, varargin)
-% This function has no output args, see OutputFcn.
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-% varargin   command line arguments to untitled (see VARARGIN)
+% --- Executes just before matlabQrCodeGui is made visible.
+function matlabQrCodeGui_OpeningFcn(hObject, eventdata, handles, varargin)
 
-% Choose default command line output for untitled
+% Choose default command line output for matlabQrCodeGui
 handles.output = hObject;
 
 % Update handles structure
 guidata(hObject, handles);
 
-% UIWAIT makes untitled wait for user response (see UIRESUME)
-% uiwait(handles.figure1);
-
-
 % --- Outputs from this function are returned to the command line.
-function varargout = untitled_OutputFcn(hObject, eventdata, handles) 
-% varargout  cell array for returning output args (see VARARGOUT);
-% hObject    handle to figure
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Get default command line output from handles structure
+function varargout = matlabQrCodeGui_OutputFcn(hObject, eventdata, handles) 
 varargout{1} = handles.output;
 
 % --- Executes during object creation, after setting all properties.
 function txtPath_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to txtPath (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
 
+% --- Executes when the text in path-textfield changed. Saves the given
+% path in a local variable
 function txtPath_Callback(hObject, eventdata, handles)
 % hObject    handle to txtPath (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -86,7 +70,8 @@ function txtPath_Callback(hObject, eventdata, handles)
 handles.path = get(hObject, 'String');
 guidata(hObject,handles);
 
-% --- Executes on button press in btnSelectFile.
+% --- Executes on button press in btnSelectFile. Displays a dialog to open
+% a file on the computer.
 function btnSelectFile_Callback(hObject, eventdata, handles)
 % hObject    handle to btnSelectFile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -96,9 +81,10 @@ handles.path = strcat(pathName, fileName);
 set(handles.txtPath, 'string', handles.path);
 guidata(hObject,handles);
 
-% --- Executes on button press in btnReadImage.
+% --- Executes on button press in btnReadImage. Read the qr-code-image on
+% the given path and display all reading steps in the gui
 function btnReadImage_Callback(hObject, eventdata, handles)
-%set gui to initial status (reset axes and set text)
+%set gui to initial status (reset axes and set text) and refresh gui
 cla(handles.axesQrCodeImage1);
 cla(handles.axesQrCodeImage2);
 cla(handles.axesQrCodeImage3);
@@ -186,7 +172,7 @@ else
         imshow(imageRGBWithAlignmentPattern);
         drawnow();
 
-        %Step 7: 
+        %Step 7: Read data
         dataString = readData(imageRGBWithAlignmentPattern, qrCodePixelSize, numberOfPixelsPerEdge, maskDec);
         set(handles.axesQrCodeImage8,'visible','on');
         axes(handles.axesQrCodeImage8);
@@ -238,7 +224,7 @@ else
         rectangle('Position', [((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) (2 * qrCodePixelSize) (2 * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
         if (mode == 4)
            modeText = '0100 =  ISO 8859-1';
-           qrCodeResult = convertToIso(dataString, mode, qrCodeVersion);
+           qrCodeResult = convertToIso(dataString);
            set(handles.txtQrCodeResult, 'string', qrCodeResult);
         else
            modeText = 'Kein ISO 8859-1. Nicht unterstützt.';
@@ -247,4 +233,3 @@ else
         drawnow();
     end
 end
-

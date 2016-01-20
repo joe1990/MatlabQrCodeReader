@@ -1,5 +1,9 @@
+% Finds the alignment patterns (qr code v2 or greater have at least 1).
+% Colorize the alignment patterns red in the image and return this image.
+%% AUTHOR    : Joel Holzer 
+%% $Revision : 1.00 $ 
+%% FILENAME  : findAndColorizeAlignmentPatterns.m 
 function imageRGB = findAndColorizeAlignmentPatterns(binaryImage, qrCodeVersion, qrCodePixelSize, finderPatternAreas)
-
     % convert binary image to rgb image for further use
     imageRGB = double(cat(3, binaryImage, binaryImage, binaryImage));
 
@@ -78,6 +82,5 @@ function imageRGB = findAndColorizeAlignmentPatterns(binaryImage, qrCodeVersion,
             end
         end; 
     end
-
 end
 

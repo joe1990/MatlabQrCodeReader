@@ -1,3 +1,17 @@
+% Finds the three finder patterns of the qr code and crop the image that 
+% only the qr code is part of the image. use bwlabel and regionprops to 
+% make this step. The function returns the following:
+% - croppedBinaryImage = The cropped image as binary image
+% - finderPatternAreas = contains the area size of the 3 finder patterns. Is
+% returned because in some qr-codes the area has not the same size, but
+% nearly the same. And is used later to compare when searching the
+% alignment patterns.
+% - qrCodePixelSize = The size in px of one module (black or white square)
+% in the qr-code-image.
+% - sizeCroppedImage = The with or height of the cropped image in px.
+%% AUTHOR    : Joel Holzer 
+%% $Revision : 1.00 $ 
+%% FILENAME  : findFinderPatternsAndCropImage.m 
 function [croppedBinaryImage, finderPatternAreas, qrCodePixelSize, sizeCroppedImage]  = findFinderPatternsAndCropImage(binaryImage)
     % find 3 finders pattern with connected components labeling
     % http://homepages.inf.ed.ac.uk/rbf/HIPR2/label.htm
