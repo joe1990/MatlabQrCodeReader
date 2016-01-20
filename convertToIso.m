@@ -29,6 +29,7 @@ function qrCodeResult = convertToIso(dataString, mode, qrCodeVersion)
         whileCounter = whileCounter + 1;
     end
     qrCodeResult = strcat(qrCodeResult);
+    qrCodeResult = replaceUmlauts(qrCodeResult);
 end
 
 function modeLength = calculateModeLength(qrCodeMode, qrCodeVersion)
@@ -44,3 +45,8 @@ function modeLength = calculateModeLength(qrCodeMode, qrCodeVersion)
     end
 end
 
+function stringWithUmlauts = replaceUmlauts(stringToReplaceUmlauts)
+    stringWithUmlauts = strrep(stringToReplaceUmlauts, 'Ã¤', 'ä');
+    stringWithUmlauts = strrep(stringWithUmlauts, 'Ã¶', 'ö');
+    stringWithUmlauts = strrep(stringWithUmlauts, 'Ã¼', 'ü');
+end
