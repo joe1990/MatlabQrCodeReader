@@ -115,127 +115,136 @@ set(handles.txtValueStep7Data, 'string', '');
 set(handles.txtQrCodeResult, 'string', '');
 drawnow();
 
-%Inital step: display loaded image in axesQrCodeImage1
-display(handles.path);
-[qrCodeImageRGB,map] = imread(handles.path);
-if ~isempty(map)
-    qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
-end
-set(handles.axesQrCodeImage1,'visible','on');
-axes(handles.axesQrCodeImage1);
-imshow(qrCodeImageRGB);
-drawnow();
-
-%Step 1: display binary image in axesQrCodeImage2
-binaryImage = convertImageToBinary(qrCodeImageRGB);
-set(handles.axesQrCodeImage2,'visible','on');
-axes(handles.axesQrCodeImage2);
-imshow(binaryImage);
-drawnow();
-
-%Step 2: find finder patterns, crop image and display in axesQrCodeImage3
-[croppedBinaryImage, finderPatternAreas, qrCodePixelSize, sizeCroppedImage] = findFinderPatternsAndCropImage(binaryImage);
-set(handles.axesQrCodeImage3,'visible','on');
-axes(handles.axesQrCodeImage3);
-imshow(croppedBinaryImage);
-drawnow();
-
-%colorize the tree finder patterns with a green rectangle
-finderPatternWidthHeight = round(qrCodePixelSize * 7);
-finderPatternsEnd = round(sizeCroppedImage) + 1;
-drawnow();
-
-%left finder pattern
-rectangle('Position', [1 1 finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
-%right finder pattern
-rectangle('Position', [(finderPatternsEnd-finderPatternWidthHeight) 1 finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
-%bottom left finder pattern
-rectangle('Position', [1 (finderPatternsEnd-finderPatternWidthHeight) finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
-
-%Step 3: calculate qr code version
-[qrCodeVersion, formulaString, numberOfPixelsPerEdge] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize);
-set(handles.txtStep3Value,'string', formulaString);
-set(handles.txtVersion,'string', strcat('Version: ', num2str(qrCodeVersion)));
-drawnow();
-
-%Step 4: read format info
-formatInfoBin = readFormatInfoAsBinary(croppedBinaryImage, qrCodePixelSize);
-set(handles.axesQrCodeImage5,'visible','on');
-axes(handles.axesQrCodeImage5);
-imshow(croppedBinaryImage);
-rectangle('Position', [1 (1 + 8 * qrCodePixelSize) (5 * qrCodePixelSize) qrCodePixelSize], 'EdgeColor','g', 'LineWidth',3);
-set(handles.txtStep4Value,'string', strcat('Format-Info Binär: ', formatInfoBin));
-drawnow();
-
-%Step 5: calculate mask
-[maskDec, maskBin, xorFormatString] = calculateMask(formatInfoBin);
-set(handles.txtStep5Value,'string', strcat(formatInfoBin, ' XOR 10101 = ', xorFormatString));
-set(handles.txtStep5Value2, 'string', strcat('3 letzte Zeichen = ', maskBin, ' = ', num2str(maskDec), ' d.h. Maske ', num2str(maskDec), ' kam zur Anwendung.'));
-drawnow();
-
-%Step 6: find and colorize alignment patterns
-imageRGBWithAlignmentPattern = findAndColorizeAlignmentPatterns(croppedBinaryImage, qrCodeVersion, qrCodePixelSize, finderPatternAreas);
-set(handles.axesQrCodeImage7,'visible','on');
-axes(handles.axesQrCodeImage7);
-imshow(imageRGBWithAlignmentPattern);
-drawnow();
-
-%Step 7: 
-dataString = readData(imageRGBWithAlignmentPattern, qrCodePixelSize, numberOfPixelsPerEdge, maskDec);
-set(handles.axesQrCodeImage8,'visible','on');
-axes(handles.axesQrCodeImage8);
-imshow(imageRGBWithAlignmentPattern);
-%draw column numbers
-for i=0:(numberOfPixelsPerEdge - 1)
-    if i < 10
-        xPos1 = qrCodePixelSize * i + (qrCodePixelSize / 2);
-    else
-        xPos1 = qrCodePixelSize * i;
-    end
-    yPos2 = qrCodePixelSize * i + (qrCodePixelSize / 2);
-    
-    yPos1 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
-    xPos2 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
-    
-    text(xPos1, yPos1, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
-    text(xPos2, yPos2, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
-
-    %rectangle for the read
-    if mod(i, 2) == 0
-        rectangle('Position', [((numberOfPixelsPerEdge - 2 - i) * qrCodePixelSize + 1) 0 (2 * qrCodePixelSize) ((numberOfPixelsPerEdge + 1) * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
-    end
-end
-%mark not readable content of the qr code
-%mark 3 areas with finder pattern, empty line and format info
-rectangle('Position', [1 1 (9 * qrCodePixelSize) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
-rectangle('Position', [(finderPatternsEnd - 8 * qrCodePixelSize - 1) 1 (8 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
-rectangle('Position', [1 (finderPatternsEnd - 8 * qrCodePixelSize - 1) (9 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
-%mark fixed patterns
-rectangle('Position', [(9 * qrCodePixelSize)  (6 * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 16) * qrCodePixelSize) qrCodePixelSize], 'FaceColor','r', 'EdgeColor', 'r');
-rectangle('Position', [(6 * qrCodePixelSize + 1) (9 * qrCodePixelSize) qrCodePixelSize ((numberOfPixelsPerEdge - 16) * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
-drawnow();
-
-%Step 7 - Continuation
-set(handles.txtStep7MaskCalculation,'string', displayMaskFormula(maskDec));
-dataStringTodisplay = dataString;
-if length(dataString) > 110
-    dataStringTodisplay = strcat(dataStringTodisplay(1:110), '...');
-end
-set(handles.txtValueStep7Data, 'string', dataStringTodisplay);
-drawnow();
-
-%Step 8 and 9: Convert dataString to ISO
-mode = bin2dec(dataString(1:4));
-set(handles.axesQrCodeImage9,'visible','on');
-axes(handles.axesQrCodeImage9);
-imshow(imageRGBWithAlignmentPattern);
-rectangle('Position', [((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) (2 * qrCodePixelSize) (2 * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
-if (mode == 4)
-   modeText = '0100 =  ISO 8859-1';
-   qrCodeResult = convertToIso(dataString, mode, qrCodeVersion);
-   set(handles.txtQrCodeResult, 'string', qrCodeResult);
+if isempty(handles.txtPath.String)
+    msgbox('Sie haben keine Datei ausgewählt.','keine Datei ausgewählt');
 else
-   modeText = 'Kein ISO 8859-1. Nicht unterstützt.';
+    fileEnding = handles.txtPath.String(length(handles.txtPath.String) - 3: end);
+    if ~strcmp(fileEnding, '.png')
+         msgbox('Die ausgewählte Datei ist kein .PNG File','kein PNG-File ausgewählt');
+    else
+        %Inital step: display loaded image in axesQrCodeImage1
+        [qrCodeImageRGB,map] = imread(handles.path);
+        if ~isempty(map)
+            qrCodeImageRGB = ind2rgb(qrCodeImageRGB,map);
+        end
+        set(handles.axesQrCodeImage1,'visible','on');
+        axes(handles.axesQrCodeImage1);
+        imshow(qrCodeImageRGB);
+        drawnow();
+
+        %Step 1: display binary image in axesQrCodeImage2
+        binaryImage = convertImageToBinary(qrCodeImageRGB);
+        set(handles.axesQrCodeImage2,'visible','on');
+        axes(handles.axesQrCodeImage2);
+        imshow(binaryImage);
+        drawnow();
+
+        %Step 2: find finder patterns, crop image and display in axesQrCodeImage3
+        [croppedBinaryImage, finderPatternAreas, qrCodePixelSize, sizeCroppedImage] = findFinderPatternsAndCropImage(binaryImage);
+        set(handles.axesQrCodeImage3,'visible','on');
+        axes(handles.axesQrCodeImage3);
+        imshow(croppedBinaryImage);
+        drawnow();
+
+        %colorize the tree finder patterns with a green rectangle
+        finderPatternWidthHeight = round(qrCodePixelSize * 7);
+        finderPatternsEnd = round(sizeCroppedImage) + 1;
+        drawnow();
+
+        %left finder pattern
+        rectangle('Position', [1 1 finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
+        %right finder pattern
+        rectangle('Position', [(finderPatternsEnd-finderPatternWidthHeight) 1 finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
+        %bottom left finder pattern
+        rectangle('Position', [1 (finderPatternsEnd-finderPatternWidthHeight) finderPatternWidthHeight finderPatternWidthHeight], 'EdgeColor','g', 'LineWidth',3);
+
+        %Step 3: calculate qr code version
+        [qrCodeVersion, formulaString, numberOfPixelsPerEdge] = calculateQrCodeVersion(sizeCroppedImage, qrCodePixelSize);
+        set(handles.txtStep3Value,'string', formulaString);
+        set(handles.txtVersion,'string', strcat('Version: ', num2str(qrCodeVersion)));
+        drawnow();
+
+        %Step 4: read format info
+        formatInfoBin = readFormatInfoAsBinary(croppedBinaryImage, qrCodePixelSize);
+        set(handles.axesQrCodeImage5,'visible','on');
+        axes(handles.axesQrCodeImage5);
+        imshow(croppedBinaryImage);
+        rectangle('Position', [1 (1 + 8 * qrCodePixelSize) (5 * qrCodePixelSize) qrCodePixelSize], 'EdgeColor','g', 'LineWidth',3);
+        set(handles.txtStep4Value,'string', strcat('Format-Info Binär: ', formatInfoBin));
+        drawnow();
+
+        %Step 5: calculate mask
+        [maskDec, maskBin, xorFormatString] = calculateMask(formatInfoBin);
+        set(handles.txtStep5Value,'string', strcat(formatInfoBin, ' XOR 10101 = ', xorFormatString));
+        set(handles.txtStep5Value2, 'string', strcat('3 letzte Zeichen = ', maskBin, ' = ', num2str(maskDec), ' d.h. Maske ', num2str(maskDec), ' kam zur Anwendung.'));
+        drawnow();
+
+        %Step 6: find and colorize alignment patterns
+        imageRGBWithAlignmentPattern = findAndColorizeAlignmentPatterns(croppedBinaryImage, qrCodeVersion, qrCodePixelSize, finderPatternAreas);
+        set(handles.axesQrCodeImage7,'visible','on');
+        axes(handles.axesQrCodeImage7);
+        imshow(imageRGBWithAlignmentPattern);
+        drawnow();
+
+        %Step 7: 
+        dataString = readData(imageRGBWithAlignmentPattern, qrCodePixelSize, numberOfPixelsPerEdge, maskDec);
+        set(handles.axesQrCodeImage8,'visible','on');
+        axes(handles.axesQrCodeImage8);
+        imshow(imageRGBWithAlignmentPattern);
+        %draw column numbers
+        for i=0:(numberOfPixelsPerEdge - 1)
+            if i < 10
+                xPos1 = qrCodePixelSize * i + (qrCodePixelSize / 2);
+            else
+                xPos1 = qrCodePixelSize * i;
+            end
+            yPos2 = qrCodePixelSize * i + (qrCodePixelSize / 2);
+
+            yPos1 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
+            xPos2 = (numberOfPixelsPerEdge + 1) * qrCodePixelSize;
+
+            text(xPos1, yPos1, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
+            text(xPos2, yPos2, sprintf('%d', i), 'Units', 'data', 'FontSize',8, 'Color','r');
+
+            %rectangle for the read
+            if mod(i, 2) == 0
+                rectangle('Position', [((numberOfPixelsPerEdge - 2 - i) * qrCodePixelSize + 1) 0 (2 * qrCodePixelSize) ((numberOfPixelsPerEdge + 1) * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
+            end
+        end
+        %mark not readable content of the qr code
+        %mark 3 areas with finder pattern, empty line and format info
+        rectangle('Position', [1 1 (9 * qrCodePixelSize) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+        rectangle('Position', [(finderPatternsEnd - 8 * qrCodePixelSize - 1) 1 (8 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+        rectangle('Position', [1 (finderPatternsEnd - 8 * qrCodePixelSize - 1) (9 * qrCodePixelSize + 1) (9 * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+        %mark fixed patterns
+        rectangle('Position', [(9 * qrCodePixelSize)  (6 * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 16) * qrCodePixelSize) qrCodePixelSize], 'FaceColor','r', 'EdgeColor', 'r');
+        rectangle('Position', [(6 * qrCodePixelSize + 1) (9 * qrCodePixelSize) qrCodePixelSize ((numberOfPixelsPerEdge - 16) * qrCodePixelSize)], 'FaceColor','r', 'EdgeColor', 'r');
+        drawnow();
+
+        %Step 7 - Continuation
+        set(handles.txtStep7MaskCalculation,'string', displayMaskFormula(maskDec));
+        dataStringTodisplay = dataString;
+        if length(dataString) > 110
+            dataStringTodisplay = strcat(dataStringTodisplay(1:110), '...');
+        end
+        set(handles.txtValueStep7Data, 'string', dataStringTodisplay);
+        drawnow();
+
+        %Step 8 and 9: Convert dataString to ISO
+        mode = bin2dec(dataString(1:4));
+        set(handles.axesQrCodeImage9,'visible','on');
+        axes(handles.axesQrCodeImage9);
+        imshow(imageRGBWithAlignmentPattern);
+        rectangle('Position', [((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) ((numberOfPixelsPerEdge - 2) * qrCodePixelSize + 1) (2 * qrCodePixelSize) (2 * qrCodePixelSize)], 'EdgeColor', 'g', 'LineWidth',3);
+        if (mode == 4)
+           modeText = '0100 =  ISO 8859-1';
+           qrCodeResult = convertToIso(dataString, mode, qrCodeVersion);
+           set(handles.txtQrCodeResult, 'string', qrCodeResult);
+        else
+           modeText = 'Kein ISO 8859-1. Nicht unterstützt.';
+        end
+        text(1, ((numberOfPixelsPerEdge + 1) * qrCodePixelSize), modeText, 'Units', 'data', 'FontSize',12, 'Color','g');
+        drawnow();
+    end
 end
-text(1, ((numberOfPixelsPerEdge + 1) * qrCodePixelSize), modeText, 'Units', 'data', 'FontSize',12, 'Color','g');
-drawnow();
+
