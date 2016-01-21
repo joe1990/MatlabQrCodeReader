@@ -14,7 +14,7 @@ function qrCodeResult = convertToIso(dataString)
     if dataStringEnd >= length(dataString)
         dataStringEnd = length(dataString) - 1;
     end
-    qrCodeContentBin = dataString(13:dataStringEnd);
+    qrCodeContentBin = dataString(11:dataStringEnd);
     startStringLocation = 1;
     qrCodeContentBinLength = length(qrCodeContentBin);
     qrCodeResult = zeros(1, floor(qrCodeContentBinLength / 8));
